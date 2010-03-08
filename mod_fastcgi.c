@@ -2864,23 +2864,6 @@ AccessFailed:
     return (res == OK) ? HTTP_FORBIDDEN : res;
 }
 
-static int 
-fixups(request_rec * r)
-{
-    uid_t uid;
-    gid_t gid;
-
-    get_request_identity(r, &uid, &gid);
-
-    if (fcgi_util_fs_get_by_id(r->filename, uid, gid))
-    {
-        r->handler = FASTCGI_HANDLER_NAME;
-        return OK;
-    }
-
-    return DECLINED;
-}
-
 #ifndef APACHE2
 
 # define AP_INIT_RAW_ARGS(directive, func, mconfig, where, help) \
@@ -2944,7 +2927,6 @@ static void register_hooks(apr_pool_t * p)
     ap_hook_check_user_id(check_user_authentication, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_access_checker(check_access, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_auth_checker(check_user_authorization, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_fixups(fixups, NULL, NULL, APR_HOOK_MIDDLE); 
 }
 
 module AP_MODULE_DECLARE_DATA fastcgi_module =
@@ -2980,7 +2962,7 @@ module MODULE_VAR_EXPORT fastcgi_module = {
     check_user_authorization,  /* [6] authorize user_id */
     check_access,              /* [4] check access (based on src & http headers) */
     NULL,                      /* [7] check/set MIME type */
-    fixups,                    /* [8] fixups */
+    NULL,                      /* [8] fixups */
     NULL,                      /* [10] logger */
     NULL,                      /* [3] header-parser */
     fcgi_child_init,           /* process initialization */
