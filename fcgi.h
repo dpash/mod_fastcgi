@@ -1,5 +1,5 @@
 /*
- * $Id: fcgi.h,v 1.45 2004/01/07 01:56:00 robs Exp $
+ * $Id: fcgi.h,v 1.47 2007/09/23 16:33:29 robs Exp $
  */
 
 #ifndef FCGI_H

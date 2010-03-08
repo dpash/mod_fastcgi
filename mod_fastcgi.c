@@ -3,7 +3,7 @@
  *
  *      Apache server module for FastCGI.
  *
- *  $Id: mod_fastcgi.c,v 1.156 2004/01/07 01:56:00 robs Exp $
+ *  $Id: mod_fastcgi.c,v 1.162 2007/11/12 23:00:10 robs Exp $
  *
  *  Copyright (c) 1995-1996 Open Market, Inc.
  *
@@ -737,7 +737,11 @@ static const char *process_headers(request_rec *r, fcgi_request *fr)
                     goto DuplicateNotAllowed;
                 }
                 hasContentType = TRUE;
+#ifdef APACHE2                
+                ap_set_content_type(r, value);
+#else
                 r->content_type = ap_pstrdup(r->pool, value);
+#endif                
                 continue;
             }
 
@@ -1130,7 +1134,10 @@ static int open_connection_to_fs(fcgi_request *fr)
 #endif
                     {
 #ifndef WIN32
-                        struct timeval tv = {1, 0};
+                        struct timeval tv;
+                        
+                        tv.tv_sec = 1;
+                        tv.tv_usec = 0;
 #endif
                         /* 
                          * There's a newer one, request a restart.
@@ -1167,7 +1174,10 @@ static int open_connection_to_fs(fcgi_request *fr)
 
                 if (fr->fs && fr->fs->restartTime)
 #else
-                struct timeval tv = {0, 500000};
+            	struct timeval tv;
+                
+                tv.tv_sec = 0;
+              	tv.tv_usec =  500000;
                 
                 /* Avoid sleep/alarm interactions */
                 ap_select(0, NULL, NULL, NULL, &tv);
@@ -1579,13 +1589,15 @@ static int npipe_io(fcgi_request * const fr)
     OVERLAPPED sov = { 0 };
     HANDLE events[2];
     struct timeval timeout;
-    struct timeval dynamic_last_io_time = {0, 0};
+    struct timeval dynamic_last_io_time;
     int did_io = 1;
     pool * const rp = r->pool;
     int is_connected = 0;
+    DWORD recv_count = 0;
 
-DWORD recv_count = 0;
-
+    dynamic_last_io_time.tv_sec = 0;
+    dynamic_last_io_time.tv_usec = 0;
+    
     if (fr->role == FCGI_RESPONDER)
     {
         client_recv = (fr->expectingClientContent != 0);
@@ -1976,7 +1988,7 @@ static int socket_io(fcgi_request * const fr)
     request_rec * const r = fr->r;
 
     struct timeval timeout;
-    struct timeval dynamic_last_io_time = {0, 0};
+    struct timeval dynamic_last_io_time;
     fd_set read_set;
     fd_set write_set;
     int nfds = 0;
@@ -1989,7 +2001,10 @@ static int socket_io(fcgi_request * const fr)
     env_status env;
     pool *rp = r->pool;
     int is_connected = 0;
-
+    
+    dynamic_last_io_time.tv_sec = 0;
+    dynamic_last_io_time.tv_usec = 0;
+    
     if (fr->role == FCGI_RESPONDER) 
     {
         client_recv = (fr->expectingClientContent != 0);
@@ -2469,8 +2484,8 @@ create_fcgi_request(request_rec * const r,
         }
     }
 
-    fr->nph = (strncmp(strrchr(fs_path, '/'), "/nph-", 5) == 0) ||
-		    (fs && fs->nph);
+    fr->nph = (strncmp(strrchr(fs_path, '/'), "/nph-", 5) == 0)
+		|| (fs && fs->nph);
 
     fr->serverInputBuffer = fcgi_buf_new(p, SERVER_BUFSIZE);
     fr->serverOutputBuffer = fcgi_buf_new(p, SERVER_BUFSIZE);
@@ -2478,6 +2493,8 @@ create_fcgi_request(request_rec * const r,
     fr->clientOutputBuffer = fcgi_buf_new(p, SERVER_BUFSIZE);
     fr->erBufPtr = fcgi_buf_new(p, sizeof(FCGI_EndRequestBody) + 1);
     fr->gotHeader = FALSE;
+    fr->parseHeader = SCAN_CGI_READING_HEADERS;
+    fr->header = ap_make_array(p, 1, 1);
     fr->fs_stderr = NULL;
     fr->r = r;
     fr->readingEndRequestBody = FALSE;
@@ -2501,25 +2518,26 @@ create_fcgi_request(request_rec * const r,
 #endif
 
     if (fr->nph) {
-	struct ap_filter_t *cur;
+#ifdef APACHE2    
+		struct ap_filter_t *cur;
 
-	fr->parseHeader = SCAN_CGI_FINISHED;
-	fr->header = ap_make_array(p, 1, 1);
+		fr->parseHeader = SCAN_CGI_FINISHED;
 
-	/* get rid of all filters up through protocol...  since we
-	 * haven't parsed off the headers, there is no way they can
-	 * work
-	 */
+		/* remove the filters up through protocol - since the headers
+		 * haven't been parsed, there is no way they can work */
 
-	cur = r->proto_output_filters;
-	while (cur && cur->frec->ftype < AP_FTYPE_CONNECTION) {
-	    cur = cur->next;
+		cur = r->proto_output_filters;
+		while (cur && cur->frec->ftype < AP_FTYPE_CONNECTION) {
+			cur = cur->next;
+		}
+		r->output_filters = r->proto_output_filters = cur;
+#else
+	    ap_log_rerror(FCGI_LOG_ERR_NOERRNO, r, 
+	        "FastCGI: invalid request \"%s\": non parsed header support is "
+	    		"not available in Apache13 (patch welcome)", fs_path);
+	    return HTTP_FORBIDDEN;
+#endif    
 	}
-	r->output_filters = r->proto_output_filters = cur;
-    } else {
-	fr->parseHeader = SCAN_CGI_READING_HEADERS;
-	fr->header = ap_make_array(p, 1, 1);
-    }
 
     set_uid_n_gid(r, &fr->user, &fr->group);
 

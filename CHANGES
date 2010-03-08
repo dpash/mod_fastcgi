@@ -1,3 +1,39 @@
+2.4.6
+
+ *) Fix a bug I introduced in 2.4.4 that broke dynamic application
+    restarts.  Reported by [Yar <yarodin gmail.com>]
+
+2.4.4
+
+ *) Allow FastCgiServer and FastCgiExternal server directives
+    to be used within VirtualHosts (again).  Add docs to explain
+    potential accessibility from other VirtualHosts.
+    [Rob Saccoccio <robs fastcgi.com>]
+    
+ *) Check for a null filename in the request to prevent an NPE that
+    was occurring when a WebSphere Apache module was also in use.
+    [Fabian Pehla <fabian pehla.de>}
+
+ *) [AP2] Call ap_set_content_type() rather than setting the content_type
+    directly so that the AddOutputFilterByType directive can work correctly.
+    [Thomas 'Freaky' Hurst <tom.hurst clara.net>]
+
+ *) Don't use initializers for timeval structs because on 64bit
+    MVS there is a padding field in between tv_sec and tv_usec.
+    [Eric Covener <covener gmail.com>]
+
+ *) [AP2] Add support for nph (non parsed header) scripts.
+	[Peter Zijlstra <peterz nedstat.com>]
+	
+ *) Abort the request if the client connection ends prematurely.
+    [Peter Zijlstra <peterz nedstat.com>]
+
+ *) Introduce the apr_* backward compatibility macros removed 
+    in Apache 2.2.  ["Daniel Smertnig" <daniel.smertnig gmail.com>]
+    
+ *) Fix a problem (remove install-modules) in Makefile.AP2 under 
+    Apache 2.2.  ["Daniel Smertnig" <daniel.smertnig gmail.com>]
+
 2.4.3
 
  *) Don't count an application exit towards the number of

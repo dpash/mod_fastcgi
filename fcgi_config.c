@@ -1,5 +1,5 @@
 /*
- * $Id: fcgi_config.c,v 1.50 2004/01/07 01:56:00 robs Exp $
+ * $Id: fcgi_config.c,v 1.53 2007/10/29 00:22:00 robs Exp $
  */
 
 #define CORE_PRIVATE
@@ -604,7 +604,7 @@ const char *fcgi_config_new_static_server(cmd_parms *cmd, void *dummy, const cha
     HANDLE mutex;
 #endif
 
-    err = ap_check_cmd_context(cmd, GLOBAL_ONLY);
+    err = ap_check_cmd_context(cmd, NOT_IN_LIMIT|NOT_IN_DIR_LOC_FILE);
     if (err)
     {
         return err;
@@ -694,7 +694,7 @@ const char *fcgi_config_new_static_server(cmd_parms *cmd, void *dummy, const cha
                 return invalid_value(tp, name, fs_path, option, err);
         }
         else if (strcasecmp(option, "-min-server-life") == 0) {
-            if ((err = get_int(tp, &arg, &s->minServerLife, 0)))
+            if ((err = get_u_int(tp, &arg, &s->minServerLife, 0)))
                 return invalid_value(tp, name, NULL, option, err);
         }
         else if (strcasecmp(option, "-priority") == 0) {
@@ -854,9 +854,8 @@ const char *fcgi_config_new_external_server(cmd_parms *cmd, void *dummy, const c
     char *fs_path = ap_getword_conf(p, &arg);
     const char *option, *err;
 
-    err = ap_check_cmd_context(cmd, GLOBAL_ONLY);
-    if (err)
-    {
+    err = ap_check_cmd_context(cmd, NOT_IN_LIMIT|NOT_IN_DIR_LOC_FILE);
+    if (err) {
         return err;
     }
 
@@ -918,6 +917,9 @@ const char *fcgi_config_new_external_server(cmd_parms *cmd, void *dummy, const c
         else if (strcasecmp(option, "-idle-timeout") == 0) {
             if ((err = get_u_int(tp, &arg, &s->idle_timeout, 1)))
                 return invalid_value(tp, name, fs_path, option, err);
+        }
+        else if (strcasecmp(option, "-nph") == 0) {
+            s->nph = 1;
         }
         else if (strcasecmp(option, "-pass-header") == 0) {
             if ((err = get_pass_header(p, &arg, &s->pass_headers)))
